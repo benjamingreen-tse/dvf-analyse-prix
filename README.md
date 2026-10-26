@@ -12,8 +12,12 @@ The raw file is **not** in this repository. Download it manually and place it in
 ## Structure
 - `data/raw/`: original files, never modified, not tracked by Git
 - `data/clean/`: files produced by the scripts, not tracked by Git
-- `R/`: scripts, run in numerical order (`01_import.R`, `02_filter_31.R`, ...)
-- `output/`: figures and tables
+- `R/`: scripts, run in numerical order
+  - `00_setup.R`: packages, paths and column types shared by all scripts (reads no data)
+  - `01_import.R`: reads the national file and runs data quality checks (removes nothing)
+  - `02_filter_31.R`: keeps Haute-Garonne and writes `data/clean/dvf_31_2025.csv`
+  - `03_clean.R`: keeps ordinary sales of exactly one house or flat, computes price per m2, writes `data/clean/dvf_31_2025_logements.csv` and the exclusion table
+- `output/`: figures and tables (`output/tables/exclusions_03_clean.csv`: sales left after each cleaning step)
 - `report/`: final report (Quarto, planned)
 
 ## Status

@@ -1,0 +1,10 @@
+step,n_ventes,excluded
+All sales in departement 31,28016,NA
+Nature = Vente,26168,1848
+At least one house or flat,20235,5933
+Exactly one dwelling,19568,667
+No professional premises,19378,190
+Price not missing,19358,20
+Price >= 10000 EUR,19318,40
+"Surface in (0, 400] m2",19313,5
+"Price/m2 in [500, 10000]",19156,157
