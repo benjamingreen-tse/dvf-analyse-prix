@@ -18,8 +18,9 @@ The raw file is **not** in this repository. Download it manually and place it in
   - `02_filter_31.R`: keeps Haute-Garonne and writes `data/clean/dvf_31_2025.csv`
   - `03_clean.R`: keeps ordinary sales of exactly one house or flat, computes price per m2, writes `data/clean/dvf_31_2025_logements.csv` and the exclusion table
   - `04_describe.R`: median price per m2 by dwelling type, commune, month and zone (Toulouse vs rest); writes the tables and figures in `output/`
+  - `05_robustness.R`: sensitivity of the medians to the four cleaning bounds, which side the price/m2 bounds remove, and the December check (sales per month at each stage of the funnel)
 - `output/`: figures (`output/figures/`) and tables (`output/tables/`); `exclusions_03_clean.csv` gives the number of sales left after each cleaning step
-- `report/`: final report (Quarto, planned)
+- `report/`: Quarto report (`dvf_report.qmd`), rendered to a self-contained HTML
 
 ## Status
 Work in progress.

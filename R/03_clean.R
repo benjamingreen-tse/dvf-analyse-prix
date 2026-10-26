@@ -5,24 +5,17 @@
 #
 # Input : data/clean/dvf_31_2025.csv
 # Output: data/clean/dvf_31_2025_logements.csv
+#         data/clean/dvf_31_2025_logements_avant_bornes.csv  (before the bounds)
 #         output/tables/exclusions_03_clean.csv  (sales left after each step)
 
 source(here::here("R", "00_setup.R"))
 
 path_out    <- here("data", "clean", "dvf_31_2025_logements.csv")
 path_funnel <- here("output", "tables", "exclusions_03_clean.csv")
+path_avant  <- here("data", "clean", "dvf_31_2025_logements_avant_bornes.csv")
 
-# --- Parameters -------------------------------------------------------------
-prix_min    <- 10000   # EUR. Only ~40 single-dwelling sales fall below it, and the
-# median price/m2 moves by 0.2% between 1,000 and 30,000 EUR.
-surface_max <- 400     # m2. Above: estates, châteaux, data-entry errors.
-prix_m2_min <- 300     # EUR/m2. Below: not a market price for a dwelling
-# (ruin, share of a property, entry error).
-# Sensitivity: moving the floor from 500 to 300 adds 74 sales (55 houses,
-# 19 flats); median price/m2 changes by less than 0.2%.
-prix_m2_max <- 10000   # EUR/m2. Median of the departement is ~2,800 EUR/m2.
-# The last three bounds come from market orders of magnitude, not from a
-# check on the data: the funnel below shows how many sales each one removes.
+# Cleaning parameters (prix_min, surface_max, prix_m2_min, prix_m2_max) are
+# defined in 00_setup.R, because 05_robustness.R varies them.
 
 # --- Import -----------------------------------------------------------------
 dvf_31 <- read_csv(path_dep31, col_types = dvf_col_types)
@@ -77,6 +70,14 @@ stopifnot(n_distinct(logements$id_mutation) == nrow(logements))
 # 6. Price known.
 logements <- logements |> filter(!is.na(valeur_fonciere))
 funnel <- add_step(funnel, "Price not missing", nrow(logements))
+
+# Intermediate table for 05_robustness.R: single-dwelling sales with a known
+# price and a positive surface, BEFORE the four bounds. Applying the bounds to
+# this table gives exactly the final table (filters commute).
+logements |>
+  filter(!is.na(surface_reelle_bati), surface_reelle_bati > 0) |>
+  mutate(prix_m2 = valeur_fonciere / surface_reelle_bati) |>
+  write_csv(path_avant)
 
 # 7. No symbolic price.
 logements <- logements |> filter(valeur_fonciere >= prix_min)

@@ -1,0 +1,171 @@
+---
+title: "Housing prices per m² in Haute-Garonne, 2025"
+subtitle: "Cleaning and describing DVF transactions with R"
+author: "Benjamin Green"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+    fig-align: center
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source(here::here("R", "00_setup.R"))
+
+tab <- function(name, ...) {
+  read_csv(here("output", "tables", paste0(name, ".csv")), show_col_types = FALSE, ...)
+}
+fig <- function(name) knitr::include_graphics(here("output", "figures", paste0(name, ".png")))
+fmt <- function(x) format(round(x), big.mark = ",")
+
+funnel  <- tab("exclusions_03_clean")
+type    <- tab("prix_m2_par_type")
+zt      <- tab("prix_m2_par_zone_type")
+commune <- tab("prix_m2_par_commune", col_types = cols(code_commune = col_character()))
+mois    <- tab("prix_m2_par_mois")
+stages  <- tab("ventes_par_mois_et_etape")
+robust  <- tab("robustesse_parametres")
+bornes  <- tab("bornes_prix_m2_exclus")
+nature  <- tab("nature_mutation_decembre")
+
+# Numbers quoted in the text, all computed from the tables above.
+n_all   <- funnel$n_ventes[1]
+n_final <- tail(funnel$n_ventes, 1)
+med     <- function(t) type$prix_m2_median[type$type_local == t]
+zmed    <- function(z, t) zt$prix_m2_median[zt$zone == z & zt$type_local == t]
+zn      <- function(z, t) zt$n_ventes[zt$zone == z & zt$type_local == t]
+share_tls <- function(t) zn("Toulouse", t) / sum(zt$n_ventes[zt$type_local == t])
+
+communes_ok <- commune |> filter(n_ventes >= 30)
+low  <- communes_ok |> slice_min(prix_m2_median, n = 1)
+high <- communes_ok |> slice_max(prix_m2_median, n = 1)
+
+final_col  <- stages$`4_echantillon_final`
+dec_ratio  <- final_col[12] / mean(final_col[1:11])
+peak_month <- format(mois$mois[which.max(mois$n_ventes)], "%B")
+vefa <- nature |> filter(str_starts(nature_mutation, "Vente en l'état"))
+vefa_dec <- vefa$part_pct[vefa$periode == "decembre"]
+vefa_rest <- vefa$part_pct[vefa$periode == "jan_nov"]
+
+max_all <- max(abs(robust$ecart_median_pct))
+max_ens <- max(abs(robust$ecart_median_pct[robust$type_local == "Ensemble"]))
+n_low  <- sum(bornes$n_ventes[bornes$cote == "sous le plancher"])
+n_high <- sum(bornes$n_ventes[bornes$cote == "au-dessus du plafond"])
+```
+
+## Question and main results
+
+What was the price per m² of houses and flats sold in Haute-Garonne in 2025, and how does it differ by dwelling type, location and month?
+
+- The sample is **`r fmt(n_final)` sales** out of `r fmt(n_all)` recorded transactions (`r round(100 * n_final / n_all)`%), each containing exactly one house or flat.
+- The median price is **`r fmt(med("Appartement"))` EUR/m² for flats** and **`r fmt(med("Maison"))` EUR/m² for houses**.
+- That gap comes from where each type is sold, not from a flat premium: `r round(100 * share_tls("Appartement"))`% of flats but only `r round(100 * share_tls("Maison"))`% of houses are in Toulouse. Within Toulouse houses are more expensive (`r fmt(zmed("Toulouse", "Maison"))` vs `r fmt(zmed("Toulouse", "Appartement"))`); outside Toulouse the two types are almost the same (`r fmt(zmed("Rest of the 31", "Maison"))` vs `r fmt(zmed("Rest of the 31", "Appartement"))`).
+- Monthly median prices are flat through the year; sales volumes are not.
+- The results move by less than `r ceiling(max_all)`% when any cleaning threshold is changed.
+
+## Data
+
+Source: DVF géolocalisées (Etalab), derived from the DGFiP *Demandes de valeurs foncières*, national file for 2025, filtered to département 31. One row of the raw file is a parcel or a premises, not a sale: the price of the whole sale is repeated on every row. The unit of analysis is therefore the sale (`id_mutation`), and the cleaning works at that level.
+
+## Cleaning
+
+A sale is kept if it is an ordinary sale (*Vente*) of exactly one house or flat, with no professional premises in the same deed, a known price, and a plausible price, surface and price per m². Each step removes sales, and the table shows how many.
+
+```{r funnel}
+funnel |>
+  transmute(Step = step, `Sales left` = n_ventes, Removed = excluded) |>
+  knitr::kable(format.args = list(big.mark = ","))
+```
+
+The thresholds are `prix_min` = `r fmt(prix_min)` EUR, `surface_max` = `r surface_max` m², and price per m² between `r prix_m2_min` and `r fmt(prix_m2_max)` EUR. They come from orders of magnitude of the market, not from the data, which is why the robustness section below varies them.
+
+## Results
+
+### By dwelling type
+
+```{r type}
+type |>
+  transmute(Type = type_local, Sales = n_ventes, Q1 = prix_m2_q1,
+            Median = prix_m2_median, Q3 = prix_m2_q3, `Median surface (m²)` = surface_mediane) |>
+  knitr::kable(format.args = list(big.mark = ","))
+```
+
+Medians and quartiles are used instead of means because the distribution of price per m² is right-skewed.
+
+```{r fig-type}
+fig("prix_m2_distribution_par_type")
+```
+
+### Toulouse against the rest of the département
+
+```{r zone}
+zt |>
+  transmute(Zone = zone, Type = type_local, Sales = n_ventes,
+            `Median EUR/m²` = prix_m2_median, `Median surface (m²)` = surface_mediane) |>
+  knitr::kable(format.args = list(big.mark = ","))
+```
+
+This is a descriptive comparison, not an adjusted one: location, size and condition are not controlled for. Houses also include the land, which flats do not, so the two types are not like-for-like.
+
+### By commune
+
+Among communes with at least 30 sales, medians run from about `r fmt(low$prix_m2_median)` EUR/m² (`r low$nom_commune`, `r low$n_ventes` sales) to about `r fmt(high$prix_m2_median)` (`r high$nom_commune`, `r high$n_ventes` sales).
+
+```{r fig-commune}
+fig("prix_m2_par_commune")
+```
+
+### By month
+
+```{r fig-mois}
+fig("prix_m2_par_mois")
+```
+
+Monthly medians stay between `r fmt(min(mois$prix_m2_median))` and `r fmt(max(mois$prix_m2_median))` EUR/m². The number of sales ranges from `r fmt(min(mois$n_ventes))` to `r fmt(max(mois$n_ventes))`, with the peak in `r peak_month`. Toulouse's share of monthly sales stays within a narrow band, so the mix between zones does not explain the monthly pattern.
+
+```{r fig-mois-zone}
+fig("prix_m2_par_mois_zone")
+```
+
+December is the second busiest month in the final sample, `r round(100 * (dec_ratio - 1))`% above the January–November average. In the full file the December excess is larger, and part of it comes from new-build sales (*VEFA*), which are `r vefa_dec`% of December transactions against `r vefa_rest`% in the other months and are excluded by the cleaning. The excess does not disappear after the cleaning, and **I have not established why**: this analysis does not test any explanation.
+
+## Robustness
+
+Each threshold is changed on its own, the other three staying at their baseline value. The largest change in a median, for any type, is `r max_all`%, and for the whole sample `r max_ens`%.
+
+```{r robust}
+robust |>
+  filter(parametre != "baseline", type_local == "Ensemble") |>
+  transmute(Parameter = parametre, Value = valeur, `Sales left` = n_ventes,
+            `Change in sales` = ecart_n, `Change in median (%)` = ecart_median_pct) |>
+  knitr::kable(format.args = list(big.mark = ","))
+```
+
+The price-per-m² bounds remove `r n_low + n_high` sales: `r n_low` below the floor and `r n_high` above the ceiling.
+
+```{r bornes}
+bornes |>
+  transmute(Side = cote, Type = type_local, Sales = n_ventes,
+            `Median price (EUR)` = prix_median, `Median surface (m²)` = surface_mediane,
+            `Median EUR/m²` = prix_m2_median) |>
+  knitr::kable(format.args = list(big.mark = ","))
+```
+
+Sales under the floor have a median price of roughly 15,000 to 25,000 EUR, which is not a plausible price for a whole dwelling; they may be partial interests or entry errors. The high side mixes very small surfaces with high prices and a few expensive houses. I did not check these sales one by one.
+
+## Limits
+
+- One year of data, and a description only: no causal claim is made.
+- Sales with several dwellings or with professional premises are excluded, so the sample covers simple residential sales and not the whole market.
+- The price per m² is the price of the whole sale divided by the built surface. Condition, floor, outbuildings and land are not observed.
+- Two identical flats on the same parcel in one sale would count as one dwelling and double the price per m²; the upper bound limits the effect.
+- Communes with few sales have unreliable medians, hence the minimum of 30 sales for the commune comparison.
+
+## Reproducing this report
+
+The raw file is not in the repository. Place `full-2025.csv.gz` in `data/raw/`, then run `R/02_filter_31.R`, `R/03_clean.R`, `R/04_describe.R` and `R/05_robustness.R` in this order, and render `report/dvf_report.qmd`.
