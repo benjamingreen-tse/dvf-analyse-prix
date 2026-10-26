@@ -22,5 +22,20 @@ The raw file is **not** in this repository. Download it manually and place it in
 - `output/`: figures (`output/figures/`) and tables (`output/tables/`); `exclusions_03_clean.csv` gives the number of sales left after each cleaning step
 - `report/`: Quarto report (`dvf_report.qmd`), rendered to a self-contained HTML
 
+## Main results (2025, Haute-Garonne)
+- 19,230 sales kept out of 28,016 recorded (ordinary sales of exactly one house or flat, plausible price and surface).
+- Median price per m2: 2,951 EUR for flats, 2,695 EUR for houses.
+- The flat/house gap reflects location: most flats are sold in Toulouse, most houses are not. Within Toulouse houses are more expensive; outside Toulouse the two types are almost the same.
+- Monthly median prices are flat over the year; volumes vary (peak in July, high in December).
+- Medians move by less than 1% when any cleaning threshold changes (`R/05_robustness.R`).
+
+Full write-up with figures, caveats and limits: `report/dvf_report.qmd` (rendered to `report/dvf_report.html`; download the file and open it in a browser).
+
+## Reproduce
+1. Install R, the packages `tidyverse`, `here`, `knitr`, `rmarkdown`, and [Quarto](https://quarto.org).
+2. Download `full-2025.csv.gz` from the data.gouv.fr page above and put it in `data/raw/`.
+3. From the project root, run in order: `R/02_filter_31.R`, `R/03_clean.R`, `R/04_describe.R`, `R/05_robustness.R` (e.g. `Rscript R/02_filter_31.R`). `R/01_import.R` is an optional diagnostic and can be skipped.
+4. `quarto render report/dvf_report.qmd`.
+
 ## Status
-Work in progress.
+Complete for the 2025 descriptive analysis.
