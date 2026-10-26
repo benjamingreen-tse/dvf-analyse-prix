@@ -17,7 +17,8 @@ The raw file is **not** in this repository. Download it manually and place it in
   - `01_import.R`: reads the national file and runs data quality checks (removes nothing)
   - `02_filter_31.R`: keeps Haute-Garonne and writes `data/clean/dvf_31_2025.csv`
   - `03_clean.R`: keeps ordinary sales of exactly one house or flat, computes price per m2, writes `data/clean/dvf_31_2025_logements.csv` and the exclusion table
-- `output/`: figures and tables (`output/tables/exclusions_03_clean.csv`: sales left after each cleaning step)
+  - `04_describe.R`: median price per m2 by dwelling type, commune, month and zone (Toulouse vs rest); writes the tables and figures in `output/`
+- `output/`: figures (`output/figures/`) and tables (`output/tables/`); `exclusions_03_clean.csv` gives the number of sales left after each cleaning step
 - `report/`: final report (Quarto, planned)
 
 ## Status
