@@ -29,7 +29,7 @@ The raw file is **not** in this repository. Download it manually and place it in
 - Monthly median prices are flat over the year; volumes vary (peak in July, high in December).
 - Medians move by less than 1% when any cleaning threshold changes (`R/05_robustness.R`).
 
-Full write-up with figures, caveats and limits: `report/dvf_report.qmd` (rendered to `report/dvf_report.html`; download the file and open it in a browser).
+Full write-up with figures, caveats and limits: `report/dvf_report.qmd` ([read it rendered](https://benjamingreen-tse.github.io/dvf-analyse-prix/report/dvf_report.html)).
 
 ## Reproduce
 1. Install R, the packages `tidyverse`, `here`, `knitr`, `rmarkdown`, and [Quarto](https://quarto.org).
